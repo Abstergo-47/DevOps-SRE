@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: python-app
-          image: python-app:latest
+          image: ghcr.io/abstergo-47/python-app:a24b09f
           imagePullPolicy: IfNotPresent
           securityContext:
             runAsUser: 1000

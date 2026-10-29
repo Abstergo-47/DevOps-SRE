@@ -13,16 +13,22 @@ permissions:
   packages: write
 
 jobs:
-  release:
-    name: Build, push & update manifest
+  build:
+    name: Build & push (${{ matrix.version }}, python ${{ matrix.python }})
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - { version: v1, python: "3.12" }
+          - { version: v2, python: "3.13" }
+          - { version: v3, python: "3.14" }
     steps:
       - uses: actions/checkout@v4
 
       - name: Set image name
         run: |
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-          echo "IMAGE=ghcr.io/${OWNER}/python-app:${GITHUB_SHA::7}" >> "$GITHUB_ENV"
+          echo "IMAGE=ghcr.io/${OWNER}/python-app:${GITHUB_SHA::7}-${{ matrix.version }}" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -39,12 +45,24 @@ jobs:
         with:
           context: .
           push: true
+          build-args: PYTHON_VERSION=${{ matrix.python }}
           tags: ${{ env.IMAGE }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: type=gha,scope=${{ matrix.version }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.version }}
 
-      - name: Update image tag in deployment
-        run: sed -i -E "s|^([[:space:]]*image:[[:space:]]*).*$|\1${IMAGE}|" kubernetes/deployment.yaml
+  update-manifest:
+    name: Update image tags in deployment
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update image tags
+        run: |
+          OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          for v in v1 v2 v3; do
+            sed -i -E "s|^([[:space:]]*image:[[:space:]]*).*[:-]${v}\$|\1ghcr.io/${OWNER}/python-app:${GITHUB_SHA::7}-${v}|" kubernetes/deployment.yaml
+          done
 
       - name: Commit and push
         run: |
@@ -52,5 +70,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add kubernetes/deployment.yaml
           git diff --staged --quiet && exit 0
-          git commit -m "ci: update image to ${IMAGE##*:} [skip ci]"
+          git commit -m "ci: update images to ${GITHUB_SHA::7} [skip ci]"
           git push

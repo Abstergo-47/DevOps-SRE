@@ -1,0 +1,74 @@
+# Alerting is done by Grafana, so Alertmanager is not needed.
+alertmanager:
+  enabled: false
+
+grafana:
+  adminPassword: admin # local demo only
+  additionalDataSources:
+    - name: Loki
+      uid: loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc:3100
+  alerting:
+    rules.yaml:
+      apiVersion: 1
+      groups:
+        - orgId: 1
+          name: app-reliability
+          folder: Application
+          interval: 30s
+          rules:
+            - uid: app-pod-not-ready
+              title: AppPodNotReady
+              condition: B
+              for: 1m
+              noDataState: OK
+              execErrState: Error
+              annotations:
+                summary: App pod is not ready (health check failing)
+              data:
+                - refId: A
+                  relativeTimeRange: { from: 300, to: 0 }
+                  datasourceUid: prometheus
+                  model:
+                    refId: A
+                    instant: true
+                    expr: kube_pod_status_ready{namespace="app", condition="false"}
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    refId: B
+                    type: threshold
+                    expression: A
+                    conditions:
+                      - evaluator: { type: gt, params: [0] }
+            - uid: app-oomkilled
+              title: AppContainerOOMKilled
+              condition: B
+              for: 0s
+              noDataState: OK
+              execErrState: Error
+              annotations:
+                summary: App container was OOMKilled (hit its memory limit)
+              data:
+                - refId: A
+                  relativeTimeRange: { from: 300, to: 0 }
+                  datasourceUid: prometheus
+                  model:
+                    refId: A
+                    instant: true
+                    # Restart in the last 5m with last exit code 137 (SIGKILL by the OOM killer).
+                    # Exit code is used because the kubelet sometimes reports reason "Error" instead of "OOMKilled".
+                    expr: >-
+                      increase(kube_pod_container_status_restarts_total{namespace="app"}[5m])
+                      * on (namespace, pod, container)
+                      clamp_max(kube_pod_container_status_last_terminated_exitcode{namespace="app"} == 137, 1)
+                - refId: B
+                  datasourceUid: __expr__
+                  model:
+                    refId: B
+                    type: threshold
+                    expression: A
+                    conditions:
+                      - evaluator: { type: gt, params: [0] }

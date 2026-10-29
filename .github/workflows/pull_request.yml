@@ -66,6 +66,12 @@ jobs:
       - lint
       - sast
       - unit-tests
+    strategy:
+      matrix:
+        include:
+          - { version: v1, python: "3.12" }
+          - { version: v2, python: "3.13" }
+          - { version: v3, python: "3.14" }
     steps:
       - uses: actions/checkout@v4
 
@@ -78,14 +84,15 @@ jobs:
           context: .
           push: false
           load: true
-          tags: python-app:pr-${{ github.event.pull_request.number }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          build-args: PYTHON_VERSION=${{ matrix.python }}
+          tags: python-app:pr-${{ github.event.pull_request.number }}-${{ matrix.version }}
+          cache-from: type=gha,scope=${{ matrix.version }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.version }}
 
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: python-app:pr-${{ github.event.pull_request.number }}
+          image-ref: python-app:pr-${{ github.event.pull_request.number }}-${{ matrix.version }}
           format: table
           exit-code: "1"
           ignore-unfixed: true

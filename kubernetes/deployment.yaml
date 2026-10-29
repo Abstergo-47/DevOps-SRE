@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: python-app
-          image: ghcr.io/abstergo-47/python-app:v1
+          image: ghcr.io/abstergo-47/python-app:219e69c-v1
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -56,7 +56,7 @@ spec:
     spec:
       containers:
         - name: python-app
-          image: ghcr.io/abstergo-47/python-app:v2
+          image: ghcr.io/abstergo-47/python-app:219e69c-v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -95,7 +95,7 @@ spec:
     spec:
       containers:
         - name: python-app
-          image: ghcr.io/abstergo-47/python-app:v3
+          image: ghcr.io/abstergo-47/python-app:219e69c-v3
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
